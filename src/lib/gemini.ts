@@ -181,3 +181,103 @@ export async function parseResumeWithGemini(resumeText: string): Promise<ResumeD
         return null; // Return null on failure so we can handle it gracefully
     }
 }
+
+interface CodeQualityAnalysis {
+    score: number;
+    summary: string;
+    strengths: string[];
+    weaknesses: string[];
+    improvements: string[];
+}
+
+export async function analyzeCodeQuality(readme: string, fileTree: string[]): Promise<CodeQualityAnalysis | null> {
+    if (!model) return null;
+
+    const cacheKey = `quality-${fileTree.join(",")}`; // Simple cache key based on file structure
+    if (persistentCache[cacheKey]) {
+        try {
+            return JSON.parse(persistentCache[cacheKey]);
+        } catch (e) { /* ignore cache error */ }
+    }
+
+    const prompt = `
+    Analyze the code quality and architecture of a software project based on its README and file structure.
+    
+    README Extract (First 2000 chars):
+    ${readme.slice(0, 2000)}
+    
+    File Structure (Top 50 files):
+    ${fileTree.join("\n")}
+    
+    Return a JSON object with the following structure:
+    {
+        "score": number, // 0-100 based on best practices, structure, and documentation
+        "summary": "Brief 2-sentence summary of the codebase structure and quality.",
+        "strengths": ["Strength 1", "Strength 2"],
+        "weaknesses": ["Weakness 1", "Weakness 2"],
+        "improvements": ["Improvement 1", "Improvement 2"]
+    }
+    
+    Analyze based on: standard naming conventions, modularity (folder structure), presence of config files (package.json, tsconfig, etc.), and documentation.
+    Ensure strictly valid JSON output.
+    `;
+
+    try {
+        const result = await model.generateContent(prompt);
+        const response = await result.response;
+        const text = response.text().replace(/```json/g, '').replace(/```/g, '').trim();
+
+        saveCache(cacheKey, text); // Cache the raw JSON string
+        return JSON.parse(text) as CodeQualityAnalysis;
+    } catch (error) {
+        console.error("Error analyzing code quality:", error);
+        return {
+            score: 75,
+            summary: "Could not analyze detailed quality. Standard project structure detected.",
+            strengths: ["Standard structure"],
+            weaknesses: [],
+            improvements: ["Add more documentation"]
+        };
+    }
+}
+
+export async function generateProjectDocs(readme: string, name: string): Promise<string> {
+    if (!model) return readme;
+
+    const cacheKey = `docs-${name}`;
+    if (persistentCache[cacheKey]) {
+        return persistentCache[cacheKey];
+    }
+
+    const prompt = `
+    You are a technical writer. Generate a professional documentation section for the project '${name}'.
+    Use the existing README content as a base, but structure it better.
+    
+    Existing README:
+    ${readme.slice(0, 3000)}
+    
+    Output in Markdown format with the following sections if they are missing or weak:
+    ## 🚀 Features
+    (Bulleted list of estimated features)
+    
+    ## 🛠️ Tech Stack
+    (Inferred from context)
+    
+    ## 📦 Installation & Setup
+    (Standard steps based on the tech stack, e.g. npm install)
+    
+    Keep it concise and professional.
+    `;
+
+    try {
+        const result = await model.generateContent(prompt);
+        const response = await result.response;
+        const text = response.text();
+
+        saveCache(cacheKey, text);
+        return text;
+    } catch (error) {
+        console.error("Error generating docs:", error);
+        return readme;
+    }
+}

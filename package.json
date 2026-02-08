@@ -9,14 +9,27 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@clerk/nextjs": "^6.37.3",
     "@google/generative-ai": "^0.24.1",
+    "@radix-ui/react-label": "^2.1.8",
+    "@radix-ui/react-progress": "^1.1.8",
+    "@radix-ui/react-slot": "^1.2.4",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
     "framer-motion": "^12.33.0",
+    "groq-sdk": "^0.37.0",
+    "html2canvas": "^1.4.1",
+    "jspdf": "^4.1.0",
     "lucide-react": "^0.563.0",
+    "motion": "^12.33.0",
     "next": "16.1.6",
     "octokit": "^5.0.5",
-    "pdf-parse": "^2.4.5",
+    "pdf2json": "^4.0.2",
     "react": "19.2.3",
-    "react-dom": "19.2.3"
+    "react-dom": "19.2.3",
+    "react-pdf": "^10.3.0",
+    "recharts": "^2.15.0",
+    "tailwind-merge": "^3.4.0"
   },
   "devDependencies": {
     "@types/node": "^20",

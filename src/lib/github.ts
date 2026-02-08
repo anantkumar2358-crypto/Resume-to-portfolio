@@ -86,3 +86,107 @@ export async function getGitHubRepos(username: string): Promise<GitHubRepo[]> {
     return [];
   }
 }
+
+export interface ContributionDay {
+  date: string;
+  count: number;
+  level: number; // 0-4 intensity level
+}
+
+export interface ContributionWeek {
+  days: ContributionDay[];
+}
+
+export async function getGitHubContributions(username: string): Promise<ContributionWeek[] | null> {
+  try {
+    const query = `
+      query($username: String!) {
+        user(login: $username) {
+          contributionsCollection {
+            contributionCalendar {
+              totalContributions
+              weeks {
+                contributionDays {
+                  date
+                  contributionCount
+                  contributionLevel
+                }
+              }
+            }
+          }
+        }
+      }
+    `;
+
+    const response: any = await octokit.graphql(query, { username });
+
+    const weeks = response.user.contributionsCollection.contributionCalendar.weeks;
+
+    return weeks.map((week: any) => ({
+      days: week.contributionDays.map((day: any) => ({
+        date: day.date,
+        count: day.contributionCount,
+        level: ['NONE', 'FIRST_QUARTILE', 'SECOND_QUARTILE', 'THIRD_QUARTILE', 'FOURTH_QUARTILE'].indexOf(day.contributionLevel)
+      }))
+    }));
+  } catch (error: any) {
+    console.error("Error fetching GitHub contributions:", error);
+    if (error.status === 403 || error.status === 429) {
+      console.error("GitHub API Rate Limit Exceeded. Contributions graph will not be displayed.");
+    }
+    return null;
+  }
+}
+
+export async function getRepoReadme(username: string, repo: string): Promise<string | null> {
+  try {
+    const { data } = await octokit.rest.repos.getReadme({
+      owner: username,
+      repo,
+      mediaType: {
+        format: "raw"
+      }
+    });
+    return data as any as string;
+  } catch (error: any) {
+    console.error("Error fetching README:", error);
+    return null;
+  }
+}
+
+export async function getRepoFileTree(username: string, repo: string): Promise<string[]> {
+  try {
+    const { data } = await octokit.rest.git.getTree({
+      owner: username,
+      repo,
+      tree_sha: "main",
+      recursive: "1",
+    });
+
+    return data.tree
+      .filter((item: any) => item.type === "blob")
+      .map((item: any) => item.path)
+      .slice(0, 50);
+  } catch (error: any) {
+    if (error.status === 404) {
+      try {
+        const { data } = await octokit.rest.git.getTree({
+          owner: username,
+          repo,
+          tree_sha: "master",
+          recursive: "1",
+        });
+        return data.tree
+          .filter((item: any) => item.type === "blob")
+          .map((item: any) => item.path)
+          .slice(0, 50);
+      } catch (e) {
+        console.error("Error fetching file tree (master):", e);
+        return [];
+      }
+    }
+    console.error("Error fetching file tree:", error);
+    return [];
+  }
+}
+

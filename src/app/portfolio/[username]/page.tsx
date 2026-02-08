@@ -1,4 +1,4 @@
-import { getGitHubProfile, getGitHubRepos } from "@/lib/github";
+import { getGitHubProfile, getGitHubRepos, getGitHubContributions } from "@/lib/github";
 import { getLeetCodeStats, getCodeforcesStats } from "@/lib/coding-platforms";
 import { enhanceProjectDescription, generateProfessionalSummary } from "@/lib/gemini";
 import Link from "next/link";
@@ -6,6 +6,8 @@ import { Github, Linkedin, Mail, ExternalLink, Code, Briefcase, GraduationCap, A
 import HeroSection from "@/components/HeroSection";
 import ProjectCard from "@/components/ProjectCard";
 import FadeIn from "@/components/FadeIn";
+import LeetCodePieChart from "@/components/LeetCodePieChart";
+import ContributionGraph from "@/components/ContributionGraph";
 
 // This is a server component
 import fs from "fs/promises";
@@ -36,9 +38,10 @@ export default async function PortfolioPage({ params }: { params: Promise<{ user
     const codeforcesUser = resumeData?.codeforcesUser;
 
     // Parallel fetch for speed
-    const [leetCodeStats, codeforcesStats] = await Promise.all([
+    const [leetCodeStats, codeforcesStats, contributionData] = await Promise.all([
         leetCodeUser ? getLeetCodeStats(leetCodeUser) : Promise.resolve(null),
-        codeforcesUser ? getCodeforcesStats(codeforcesUser) : Promise.resolve(null)
+        codeforcesUser ? getCodeforcesStats(codeforcesUser) : Promise.resolve(null),
+        getGitHubContributions(username)
     ]);
 
     if (!profile) {
@@ -128,33 +131,48 @@ export default async function PortfolioPage({ params }: { params: Promise<{ user
                         <div className="absolute top-0 right-0 w-[300px] h-[300px] bg-blue-500/10 rounded-full blur-[80px]" />
 
                         <h3 className="text-xl font-bold text-white mb-6 relative z-10">Competitive Programming</h3>
-                        <div className="flex flex-wrap gap-8 relative z-10">
-                            {leetCodeStats && (
-                                <div className="flex gap-4 items-center">
-                                    <div className="p-3 bg-yellow-500/10 rounded-lg text-yellow-500">
-                                        <Code size={24} />
-                                    </div>
-                                    <div>
-                                        <div className="text-sm text-slate-400 font-semibold uppercase">LeetCode</div>
-                                        <div className="text-xl font-bold text-white">{leetCodeStats.totalSolved} Solved</div>
-                                        {(leetCodeStats.contestRating || 0) > 0 && (
-                                            <div className="text-sm text-yellow-400 font-mono">Rating: {Math.round(leetCodeStats.contestRating || 0)}</div>
-                                        )}
-                                        <div className="text-xs text-slate-500">Rank: {leetCodeStats.ranking.toLocaleString()}</div>
-                                    </div>
-                                </div>
-                            )}
 
-                            {codeforcesStats && (
-                                <div className="flex gap-4 items-center">
-                                    <div className="p-3 bg-red-500/10 rounded-lg text-red-500">
-                                        <div className="w-6 h-6 flex items-center justify-center font-bold text-lg">CF</div>
+                        <div className={`${leetCodeUser && leetCodeStats && leetCodeStats.totalSolved > 0 ? 'grid grid-cols-1 lg:grid-cols-2 gap-8' : 'flex flex-col gap-8'} relative z-10`}>
+                            {/* Stats Section */}
+                            <div className="flex flex-col gap-8">
+                                {leetCodeStats && (
+                                    <div className="flex gap-4 items-center">
+                                        <div className="p-3 bg-yellow-500/10 rounded-lg text-yellow-500">
+                                            <Code size={24} />
+                                        </div>
+                                        <div>
+                                            <div className="text-sm text-slate-400 font-semibold uppercase">LeetCode</div>
+                                            <div className="text-xl font-bold text-white">{leetCodeStats.totalSolved} Solved</div>
+                                            {(leetCodeStats.contestRating || 0) > 0 && (
+                                                <div className="text-sm text-yellow-400 font-mono">Rating: {Math.round(leetCodeStats.contestRating || 0)}</div>
+                                            )}
+                                            <div className="text-xs text-slate-500">Rank: {leetCodeStats.ranking.toLocaleString()}</div>
+                                        </div>
                                     </div>
-                                    <div>
-                                        <div className="text-sm text-slate-400 font-semibold uppercase">Codeforces</div>
-                                        <div className="text-xl font-bold text-white">{codeforcesStats.rating} <span className="text-sm font-normal text-slate-400">({codeforcesStats.rank})</span></div>
-                                        <div className="text-xs text-slate-500">Max: {codeforcesStats.maxRating}</div>
+                                )}
+
+                                {codeforcesStats && (
+                                    <div className="flex gap-4 items-center">
+                                        <div className="p-3 bg-red-500/10 rounded-lg text-red-500">
+                                            <div className="w-6 h-6 flex items-center justify-center font-bold text-lg">CF</div>
+                                        </div>
+                                        <div>
+                                            <div className="text-sm text-slate-400 font-semibold uppercase">Codeforces</div>
+                                            <div className="text-xl font-bold text-white">{codeforcesStats.rating} <span className="text-sm font-normal text-slate-400">({codeforcesStats.rank})</span></div>
+                                            <div className="text-xs text-slate-500">Max: {codeforcesStats.maxRating}</div>
+                                        </div>
                                     </div>
+                                )}
+                            </div>
+
+                            {/* LeetCode Pie Chart */}
+                            {leetCodeUser && leetCodeStats && leetCodeStats.totalSolved > 0 && (
+                                <div className="flex items-center justify-center">
+                                    <LeetCodePieChart
+                                        easySolved={leetCodeStats.easySolved}
+                                        mediumSolved={leetCodeStats.mediumSolved}
+                                        hardSolved={leetCodeStats.hardSolved}
+                                    />
                                 </div>
                             )}
                         </div>
@@ -214,6 +232,18 @@ export default async function PortfolioPage({ params }: { params: Promise<{ user
                     </div>
                 </FadeIn>
 
+                {/* GitHub Contribution Graph */}
+                {contributionData && (
+                    <FadeIn delay={0.45} className="mb-24">
+                        <h2 className="text-3xl font-bold mb-8 flex items-center gap-3">
+                            <Github className="text-blue-500" /> Contribution Activity
+                        </h2>
+                        <div className="bg-slate-900 p-6 rounded-2xl border border-slate-800 shadow-2xl">
+                            <ContributionGraph weeks={contributionData} />
+                        </div>
+                    </FadeIn>
+                )}
+
                 {/* Experience Section */}
                 {experience.length > 0 && (
                     <FadeIn delay={0.5} className="mb-24">
@@ -264,7 +294,8 @@ export default async function PortfolioPage({ params }: { params: Promise<{ user
                                     url: project.html_url,
                                     homepage: project.homepage,
                                     language: project.language,
-                                    stars: project.stargazers_count
+                                    stars: project.stargazers_count,
+                                    username: username
                                 }}
                             />
                         ))}
