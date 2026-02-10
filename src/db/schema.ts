@@ -46,7 +46,7 @@ export const resumeData = pgTable('resume_data', {
         icon: string;
         title: string;
         description: string;
-    }>>(),
+    }>>().default([]),
     contactInfo: text('contact_info'),
     createdAt: timestamp('created_at').defaultNow().notNull(),
     updatedAt: timestamp('updated_at').defaultNow().notNull(),

@@ -95,11 +95,29 @@ export async function upsertResumeData(userId: string, data: {
             id: createId(),
             userId,
             ...data,
+            // Safety defaults to prevent "NOT NULL" errors if DB schema forbids nulls
+            professionalSummary: data.professionalSummary ?? "",
+            aboutMe: data.aboutMe ?? "",
+            contactInfo: data.contactInfo ?? "",
+            skills: data.skills ?? [],
+            experience: data.experience ?? [],
+            education: data.education ?? [],
+            certifications: data.certifications ?? [],
+            interests: data.interests ?? [],
         })
         .onConflictDoUpdate({
             target: resumeData.userId,
             set: {
                 ...data,
+                // Update checks as well
+                professionalSummary: data.professionalSummary ?? "",
+                aboutMe: data.aboutMe ?? "",
+                contactInfo: data.contactInfo ?? "",
+                skills: data.skills ?? [],
+                experience: data.experience ?? [],
+                education: data.education ?? [],
+                certifications: data.certifications ?? [],
+                interests: data.interests ?? [],
                 updatedAt: new Date(),
             },
         })
