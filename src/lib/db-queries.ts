@@ -89,41 +89,47 @@ export async function upsertResumeData(userId: string, data: {
     interests?: any[];
     contactInfo?: string;
 }) {
-    const [resume] = await db
-        .insert(resumeData)
-        .values({
-            id: createId(),
-            userId,
-            ...data,
-            // Safety defaults to prevent "NOT NULL" errors if DB schema forbids nulls
-            professionalSummary: data.professionalSummary ?? "",
-            aboutMe: data.aboutMe ?? "",
-            contactInfo: data.contactInfo ?? "",
-            skills: data.skills ?? [],
-            experience: data.experience ?? [],
-            education: data.education ?? [],
-            certifications: data.certifications ?? [],
-            interests: data.interests ?? [],
-        })
-        .onConflictDoUpdate({
-            target: resumeData.userId,
-            set: {
-                ...data,
-                // Update checks as well
-                professionalSummary: data.professionalSummary ?? "",
-                aboutMe: data.aboutMe ?? "",
-                contactInfo: data.contactInfo ?? "",
-                skills: data.skills ?? [],
-                experience: data.experience ?? [],
-                education: data.education ?? [],
-                certifications: data.certifications ?? [],
-                interests: data.interests ?? [],
-                updatedAt: new Date(),
-            },
-        })
-        .returning();
+    // Check for existing record first to avoid "ON CONFLICT" errors if unique constraint is missing
+    const [existing] = await db
+        .select()
+        .from(resumeData)
+        .where(eq(resumeData.userId, userId))
+        .limit(1);
 
-    return resume;
+    const values = {
+        professionalSummary: data.professionalSummary ?? "",
+        aboutMe: data.aboutMe ?? "",
+        contactInfo: data.contactInfo ?? "",
+        skills: data.skills ?? [],
+        experience: data.experience ?? [],
+        education: data.education ?? [],
+        certifications: data.certifications ?? [],
+        interests: data.interests ?? [],
+    };
+
+    if (existing) {
+        const [updated] = await db
+            .update(resumeData)
+            .set({
+                ...data, // Allow overwriting with provided data
+                ...values, // Ensure defaults if keys are present but undefined
+                updatedAt: new Date(),
+            })
+            .where(eq(resumeData.userId, userId))
+            .returning();
+        return updated;
+    } else {
+        const [inserted] = await db
+            .insert(resumeData)
+            .values({
+                id: createId(),
+                userId,
+                ...data,
+                ...values,
+            })
+            .returning();
+        return inserted;
+    }
 }
 
 /**
@@ -135,22 +141,34 @@ export async function upsertCodingStats(userId: string, data: {
     codeforcesUsername?: string | null;
     codeforcesStats?: any;
 }) {
-    const [stats] = await db
-        .insert(codingStats)
-        .values({
-            userId,
-            ...data,
-        })
-        .onConflictDoUpdate({
-            target: codingStats.userId,
-            set: {
+    // Check for existing record
+    const [existing] = await db
+        .select()
+        .from(codingStats)
+        .where(eq(codingStats.userId, userId))
+        .limit(1);
+
+    if (existing) {
+        const [updated] = await db
+            .update(codingStats)
+            .set({
                 ...data,
                 updatedAt: new Date(),
-            },
-        })
-        .returning();
-
-    return stats;
+            })
+            .where(eq(codingStats.userId, userId))
+            .returning();
+        return updated;
+    } else {
+        const [inserted] = await db
+            .insert(codingStats)
+            .values({
+                id: createId(),
+                userId,
+                ...data,
+            })
+            .returning();
+        return inserted;
+    }
 }
 
 /**
@@ -197,22 +215,34 @@ export async function upsertGithubContributions(userId: string, data: {
     currentStreak?: number;
     longestStreak?: number;
 }) {
-    const [contribution] = await db
-        .insert(githubContributions)
-        .values({
-            userId,
-            ...data,
-        })
-        .onConflictDoUpdate({
-            target: githubContributions.userId,
-            set: {
+    // Check for existing record
+    const [existing] = await db
+        .select()
+        .from(githubContributions)
+        .where(eq(githubContributions.userId, userId))
+        .limit(1);
+
+    if (existing) {
+        const [updated] = await db
+            .update(githubContributions)
+            .set({
                 ...data,
                 updatedAt: new Date(),
-            },
-        })
-        .returning();
-
-    return contribution;
+            })
+            .where(eq(githubContributions.userId, userId))
+            .returning();
+        return updated;
+    } else {
+        const [inserted] = await db
+            .insert(githubContributions)
+            .values({
+                id: createId(),
+                userId,
+                ...data,
+            })
+            .returning();
+        return inserted;
+    }
 }
 
 /**
